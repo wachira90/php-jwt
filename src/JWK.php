@@ -97,6 +97,24 @@ class JWK
                     );
                 }
                 return $publicKey;
+            case 'EC':
+                if (!empty($jwk['d'])) {
+                    throw new UnexpectedValueException('EC private keys are not supported');
+                }
+                if (!isset($jwk['crv']) || !isset($jwk['k'] || !isset($jwk['y'])) {
+                    throw new UnexpectedValueException('EC keys must contain values for "crv", "x" and "y"');
+                }
+                // see https://github.com/Spomky-Labs/jose/blob/master/src/KeyConverter/ECKey.php
+                $oids = [
+                    'P-256' => '1.2.840.10045.3.1.7',
+                    'P-384' => '1.3.132.0.34',
+                    'P-521' => '1.3.132.0.35',
+                ];
+                if (!isset($oids[$jwk['crv'])) {
+                    throw new UnexpectedValueException('Unsupported or invalid value for crv');
+                }
+                // sequence(oid(1.2.840.10045.2.1), null)) = rsaEncryption.
+                $ecOID = \pack('H*', '300d06092a864886f70d0101010500'); // hex version of MA0GCSqGSIb3DQEBAQUA
             default:
                 // Currently only RSA is supported
                 break;
