@@ -37,7 +37,7 @@ class JWTTest extends TestCase
     public function testMalformedUtf8StringsFail()
     {
         $this->setExpectedException('DomainException');
-        JWT::encode(pack('c', 128), 'a', 'HS256');
+        JWT::encode([pack('c', 128)], 'a', 'HS256');
     }
 
     public function testMalformedJsonThrowsException()
@@ -187,7 +187,7 @@ class JWTTest extends TestCase
             "message" => "abc",
             "exp" => time() + JWT::$leeway + 20); // time in the future
         $encoded = JWT::encode($payload, 'my_key', 'HS256');
-        $this->setExpectedException('InvalidArgumentException');
+        $this->setExpectedException('TypeError');
         JWT::decode($encoded, new Key(null, 'HS256'));
     }
 
@@ -240,7 +240,7 @@ class JWTTest extends TestCase
     public function testEmptyAlgorithm()
     {
         $msg = JWT::encode('abc', 'my_key', 'HS256');
-        $this->setExpectedException('UnexpectedValueException');
+        $this->setExpectedException('InvalidArgumentException');
         JWT::decode($msg, new Key('my_key', ''));
     }
 
@@ -316,11 +316,11 @@ class JWTTest extends TestCase
             'passphrase'
         );
 
-        $jwt = JWT::encode('abc', $privateKey, 'RS256');
+        $jwt = JWT::encode(['abc'], $privateKey, 'RS256');
         $keyDetails = openssl_pkey_get_details($privateKey);
         $pubKey = $keyDetails['key'];
         $decoded = JWT::decode($jwt, new Key($pubKey, 'RS256'));
-        $this->assertEquals($decoded, 'abc');
+        $this->assertEquals($decoded, ['abc']);
     }
 
     /**

@@ -2,37 +2,34 @@
 
 namespace Firebase\JWT;
 
-use InvalidArgumentException;
 use OpenSSLAsymmetricKey;
+use TypeError;
+use InvalidArgumentException;
 
 class Key
 {
-    /** @var string $algorithm */
-    private $algorithm;
-
-    /** @var string|resource|OpenSSLAsymmetricKey $keyMaterial */
-    private $keyMaterial;
-
     /**
      * @param string|resource|OpenSSLAsymmetricKey $keyMaterial
      * @param string $algorithm
      */
-    public function __construct($keyMaterial, $algorithm)
-    {
+    public function __construct(
+        private mixed $keyMaterial,
+        private string $algorithm
+    ) {
         if (
             !is_string($keyMaterial)
             && !is_resource($keyMaterial)
             && !$keyMaterial instanceof OpenSSLAsymmetricKey
         ) {
-            throw new InvalidArgumentException('Type error: $keyMaterial must be a string, resource, or OpenSSLAsymmetricKey');
+            throw new TypeError('Key material must be a string, resource, or OpenSSLAsymmetricKey');
         }
 
         if (empty($keyMaterial)) {
-            throw new InvalidArgumentException('Type error: $keyMaterial must not be empty');
+            throw new InvalidArgumentException('Key material must not be empty');
         }
 
-        if (!is_string($algorithm)|| empty($keyMaterial)) {
-            throw new InvalidArgumentException('Type error: $algorithm must be a string');
+        if (empty($algorithm)) {
+            throw new InvalidArgumentException('Algorithm must not be empty');
         }
 
         $this->keyMaterial = $keyMaterial;
@@ -44,7 +41,7 @@ class Key
      *
      * @return string
      */
-    public function getAlgorithm()
+    public function getAlgorithm(): string
     {
         return $this->algorithm;
     }
@@ -52,7 +49,7 @@ class Key
     /**
      * @return string|resource|OpenSSLAsymmetricKey
      */
-    public function getKeyMaterial()
+    public function getKeyMaterial(): mixed
     {
         return $this->keyMaterial;
     }
