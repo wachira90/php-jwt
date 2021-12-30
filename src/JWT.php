@@ -9,6 +9,7 @@ use InvalidArgumentException;
 use OpenSSLAsymmetricKey;
 use UnexpectedValueException;
 use DateTime;
+use stdClass;
 
 /**
  * JSON Web Token implementation, based on this spec:
@@ -51,14 +52,14 @@ class JWT
     /**
      * Decodes a JWT string into a PHP object.
      *
-     * @param string                    $jwt            The JWT
-     * @param Key|array<Key>            $keyOrKeyArray  The Key or array of Key objects.
-     *                                                  If the algorithm used is asymmetric, this is the public key
-     *                                                  Each Key object contains an algorithm and matching key.
-     *                                                  Supported algorithms are 'ES384','ES256', 'HS256', 'HS384',
-     *                                                  'HS512', 'RS256', 'RS384', and 'RS512'
+     * @param string    $jwt            The JWT
+     * @param Key|Key[] $keyOrKeyArray  The Key or array of Key objects.
+     *                                  If the algorithm used is asymmetric, this is the public key
+     *                                  Each Key object contains an algorithm and matching key.
+     *                                  Supported algorithms are 'ES384','ES256', 'HS256', 'HS384',
+     *                                  'HS512', 'RS256', 'RS384', and 'RS512'
      *
-     * @return object The JWT's payload as a PHP object
+     * @return stdClass The JWT's payload as a PHP object
      *
      * @throws InvalidArgumentException     Provided key/key-array was empty
      * @throws DomainException              Provided JWT is malformed
@@ -71,7 +72,7 @@ class JWT
      * @uses jsonDecode
      * @uses urlsafeB64Decode
      */
-    public static function decode(string $jwt, Key|array|ArrayAccess $keyOrKeyArray): object|array|string
+    public static function decode(string $jwt, Key|array|ArrayAccess $keyOrKeyArray): stdClass
     {
         // Validate JWT
         $timestamp = \time();
@@ -143,8 +144,8 @@ class JWT
     /**
      * Converts and signs a PHP object or array into a JWT string.
      *
-     * @param object|array|string                  $payload    PHP object or array
-     * @param string|resource|OpenSSLAsymmetricKey $key        The secret key.
+     * @param array                       $payload    PHP array
+     * @param string|OpenSSLAsymmetricKey $key        The secret key.
      *                                             If the algorithm used is asymmetric, this is the private key
      * @param string            $keyId
      * @param array             $head              An array with header elements to attach
@@ -155,8 +156,8 @@ class JWT
      * @uses urlsafeB64Encode
      */
     public static function encode(
-        object|array|string $payload,
-        mixed $key,
+        array $payload,
+        string|OpenSSLAsymmetricKey $key,
         string $alg,
         string $keyId = null,
         array $head = null
@@ -182,16 +183,16 @@ class JWT
     /**
      * Sign a string with a given key and algorithm.
      *
-     * @param string                               $msg  The message to sign
-     * @param string|resource|OpenSSLAsymmetricKey $key  The secret key.
-     * @param string                               $alg  Supported algorithms are 'ES384','ES256', 'HS256', 'HS384',
+     * @param string                      $msg  The message to sign
+     * @param string|OpenSSLAsymmetricKey $key  The secret key.
+     * @param string                      $alg  Supported algorithms are 'ES384','ES256', 'HS256', 'HS384',
      *                                                   'HS512', 'RS256', 'RS384', and 'RS512'
      *
      * @return string An encrypted message
      *
      * @throws DomainException Unsupported algorithm or bad key was specified
      */
-    public static function sign(string $msg,  mixed $key, string $alg): string
+    public static function sign(string $msg, string|OpenSSLAsymmetricKey $key, string $alg): string
     {
         if (empty(static::$supported_algs[$alg])) {
             throw new DomainException('Algorithm not supported');
@@ -231,10 +232,10 @@ class JWT
      * Verify a signature with the message, key and method. Not all methods
      * are symmetric, so we must have a separate verify and sign method.
      *
-     * @param string            $msg        The original message (header and body)
-     * @param string            $signature  The original signature
-     * @param string|resource   $key        For HS*, a string key works. for RS*, must be a resource of an openssl public key
-     * @param string            $alg        The algorithm
+     * @param string                      $msg        The original message (header and body)
+     * @param string                      $signature  The original signature
+     * @param string|OpenSSLAsymmetricKey $key        For HS*, a string key works. for RS*, must be an instance of OpenSSLAsymmetricKey
+     * @param string                      $alg        The algorithm
      *
      * @return bool
      *
@@ -243,7 +244,7 @@ class JWT
     private static function verify(
         string $msg,
         string $signature,
-        mixed $keyMaterial,
+        string|OpenSSLAsymmetricKey keyMaterial,
         string $alg
     ): bool {
         if (empty(static::$supported_algs[$alg])) {
@@ -291,7 +292,7 @@ class JWT
      *
      * @throws DomainException Provided string was invalid JSON
      */
-    public static function jsonDecode(string $input): object|array|string
+    public static function jsonDecode(string $input): stdClass
     {
         $obj = \json_decode($input, false, 512, JSON_BIGINT_AS_STRING);
 
@@ -304,15 +305,15 @@ class JWT
     }
 
     /**
-     * Encode a PHP object into a JSON string.
+     * Encode a PHP array into a JSON string.
      *
-     * @param object|array $input A PHP object or array
+     * @param array $input A PHP array
      *
-     * @return string JSON representation of the PHP object or array
+     * @return string JSON representation of the PHP array
      *
      * @throws DomainException Provided object could not be encoded to valid JSON
      */
-    public static function jsonEncode(object|array|string $input): string
+    public static function jsonEncode(array $input): string
     {
         if (PHP_VERSION_ID >= 50400) {
             $json = \json_encode($input, \JSON_UNESCAPED_SLASHES);
@@ -361,7 +362,7 @@ class JWT
     /**
      * Determine if an algorithm has been provided for each Key
      *
-     * @param Key|array<Key>    $keyOrKeyArray
+     * @param Key|Key[]   $keyOrKeyArray
      * @param string|null $kid
      *
      * @throws UnexpectedValueException
@@ -452,7 +453,7 @@ class JWT
      *
      * @return int
      */
-    private static function safeStrlen($str)
+    private static function safeStrlen(string $str): int
     {
         if (\function_exists('mb_strlen')) {
             return \mb_strlen($str, '8bit');
@@ -466,7 +467,7 @@ class JWT
      * @param   string $sig The ECDSA signature to convert
      * @return  string The encoded DER object
      */
-    private static function signatureToDER($sig)
+    private static function signatureToDER(string $sig): string
     {
         // Separate the signature into r-value and s-value
         list($r, $s) = \str_split($sig, (int) (\strlen($sig) / 2));
@@ -496,9 +497,10 @@ class JWT
      *
      * @param   int     $type DER tag
      * @param   string  $value the value to encode
+     *
      * @return  string  the encoded object
      */
-    private static function encodeDER($type, $value)
+    private static function encodeDER(int $type, string $value): string
     {
         $tag_header = 0;
         if ($type === self::ASN1_SEQUENCE) {
@@ -519,9 +521,10 @@ class JWT
      *
      * @param   string  $der binary signature in DER format
      * @param   int     $keySize the number of bits in the key
+     *
      * @return  string  the signature
      */
-    private static function signatureFromDER($der, $keySize)
+    private static function signatureFromDER(string $der, int $keySize): string
     {
         // OpenSSL returns the ECDSA signatures as a binary ASN.1 DER SEQUENCE
         list($offset, $_) = self::readDER($der);
@@ -546,9 +549,10 @@ class JWT
      * @param string $der the binary data in DER format
      * @param int $offset the offset of the data stream containing the object
      * to decode
+     *
      * @return array [$offset, $data] the new offset and the decoded object
      */
-    private static function readDER($der, $offset = 0)
+    private static function readDER(string $der, int $offset = 0): array
     {
         $pos = $offset;
         $size = \strlen($der);

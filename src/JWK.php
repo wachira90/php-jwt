@@ -25,7 +25,7 @@ class JWK
      *
      * @param array $jwks The JSON Web Key Set as an associative array
      *
-     * @return array An associative array that represents the set of keys
+     * @return Key[] An associative array that represents the set of keys
      *
      * @throws InvalidArgumentException     Provided JWK Set is empty
      * @throws UnexpectedValueException     Provided JWK Set was invalid
@@ -33,30 +33,21 @@ class JWK
      *
      * @uses parseKey
      */
-    public static function parseKeySet(array $jwks)
+    public static function parseKeySet(array $jwks): array
     {
-        $keys = array();
+        $keys = [];
 
         if (!isset($jwks['keys'])) {
             throw new UnexpectedValueException('"keys" member must exist in the JWK Set');
         }
+
         if (empty($jwks['keys'])) {
             throw new InvalidArgumentException('JWK Set did not contain any keys');
         }
 
         foreach ($jwks['keys'] as $k => $v) {
             $kid = isset($v['kid']) ? $v['kid'] : $k;
-            if ($key = self::parseKey($v)) {
-                if (isset($v['alg'])) {
-                    $keys[$kid] = new Key($key, $v['alg']);
-                } else {
-                    // The "alg" parameter is optional in a KTY, but is required
-                    // for parsing in this library. Add it manually to your JWK
-                    // array if it doesn't already exist.
-                    // @see https://datatracker.ietf.org/doc/html/rfc7517#section-4.4
-                    throw new InvalidArgumentException('JWK key is missing "alg"');
-                }
-            }
+            $keys[$kid] = self::parseKey($v);
         }
 
         if (0 === \count($keys)) {
@@ -71,7 +62,7 @@ class JWK
      *
      * @param array $jwk An individual JWK
      *
-     * @return resource|array An associative array that represents the key
+     * @return Key The key object for the JWK
      *
      * @throws InvalidArgumentException     Provided JWK is empty
      * @throws UnexpectedValueException     Provided JWK was invalid
@@ -79,13 +70,21 @@ class JWK
      *
      * @uses createPemFromModulusAndExponent
      */
-    public static function parseKey(array $jwk)
+    public static function parseKey(array $jwk): Key
     {
         if (empty($jwk)) {
             throw new InvalidArgumentException('JWK must not be empty');
         }
+
         if (!isset($jwk['kty'])) {
             throw new UnexpectedValueException('JWK must contain a "kty" parameter');
+        }
+
+        if (!isset($jwk['alg'])) {
+	    // The "alg" parameter is optional in a KTY, but is required for parsing in
+	    // this library. Add it manually to your JWK array if it doesn't already exist.
+            // @see https://datatracker.ietf.org/doc/html/rfc7517#section-4.4
+            throw new UnexpectedValueException('JWK must contain a "alg" parameter');
         }
 
         switch ($jwk['kty']) {
@@ -104,7 +103,7 @@ class JWK
                         'OpenSSL error: ' . \openssl_error_string()
                     );
                 }
-                return $publicKey;
+                return new Key($publicKey, $jwk['alg']);
             default:
                 // Currently only RSA is supported
                 break;

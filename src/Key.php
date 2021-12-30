@@ -9,19 +9,18 @@ use InvalidArgumentException;
 class Key
 {
     /**
-     * @param string|resource|OpenSSLAsymmetricKey $keyMaterial
+     * @param string|OpenSSLAsymmetricKey $keyMaterial
      * @param string $algorithm
      */
     public function __construct(
-        private mixed $keyMaterial,
+        private string|OpenSSLAsymmetricKey $keyMaterial,
         private string $algorithm
     ) {
         if (
             !is_string($keyMaterial)
-            && !is_resource($keyMaterial)
             && !$keyMaterial instanceof OpenSSLAsymmetricKey
         ) {
-            throw new TypeError('Key material must be a string, resource, or OpenSSLAsymmetricKey');
+            throw new TypeError('Key material must be a string or OpenSSLAsymmetricKey');
         }
 
         if (empty($keyMaterial)) {
@@ -47,7 +46,7 @@ class Key
     }
 
     /**
-     * @return string|resource|OpenSSLAsymmetricKey
+     * @return string|OpenSSLAsymmetricKey
      */
     public function getKeyMaterial(): mixed
     {
