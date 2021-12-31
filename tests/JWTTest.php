@@ -7,6 +7,7 @@ use PHPUnit\Framework\TestCase;
 use DomainException;
 use InvalidArgumentException;
 use UnexpectedValueException;
+use stdClass;
 
 class JWTTest extends TestCase
 {
@@ -22,25 +23,18 @@ class JWTTest extends TestCase
         }
     }
 
-    public function testDecodeFromPython()
-    {
-        $msg = 'eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.Iio6aHR0cDovL2FwcGxpY2F0aW9uL2NsaWNreT9ibGFoPTEuMjMmZi5vbz00NTYgQUMwMDAgMTIzIg.E_U8X2YpMT5K1cEiT_3-IvBYfrdIFIeVYeOqre_Z5Cg';
-        $this->assertEquals(
-            JWT::decode($msg, new Key('my_key', 'HS256')),
-            '*:http://application/clicky?blah=1.23&f.oo=456 AC000 123'
-        );
-    }
-
     public function testUrlSafeCharacters()
     {
-        $encoded = JWT::encode(['f?'], 'a', 'HS256');
-        $this->assertEquals(['f?'], JWT::decode($encoded, new Key('a', 'HS256')));
+        $encoded = JWT::encode(['message' => 'f?'], 'a', 'HS256');
+        $expected = new stdClass();
+        $expected->message = 'f?';
+        $this->assertEquals($expected, JWT::decode($encoded, new Key('a', 'HS256')));
     }
 
     public function testMalformedUtf8StringsFail()
     {
         $this->setExpectedException(DomainException::class);
-        JWT::encode([pack('c', 128)], 'a', 'HS256');
+        JWT::encode(['message' => pack('c', 128)], 'a', 'HS256');
     }
 
     public function testMalformedJsonThrowsException()
@@ -210,9 +204,11 @@ class JWTTest extends TestCase
             '1' => new Key('my_key', 'HS256'),
             '2' => new Key('my_key2', 'HS256')
         ];
-        $msg = JWT::encode(['abc'], $keys['1']->getKeyMaterial(), 'HS256', '1');
+        $msg = JWT::encode(['message' => 'abc'], $keys['1']->getKeyMaterial(), 'HS256', '1');
         $decoded = JWT::decode($msg, $keys);
-        $this->assertEquals($decoded, ['abc']);
+        $expected = new stdClass();
+        $expected->message = 'abc';
+        $this->assertEquals($decoded, $expected);
     }
 
     public function testArrayAccessKIDChooser()
@@ -221,36 +217,40 @@ class JWTTest extends TestCase
             '1' => new Key('my_key', 'HS256'),
             '2' => new Key('my_key2', 'HS256'),
         ]);
-        $msg = JWT::encode(['abc'], $keys['1']->getKeyMaterial(), 'HS256', '1');
+        $msg = JWT::encode(['message' => 'abc'], $keys['1']->getKeyMaterial(), 'HS256', '1');
         $decoded = JWT::decode($msg, $keys);
-        $this->assertEquals($decoded, 'abc');
+        $expected = new stdClass();
+        $expected->message = 'abc';
+        $this->assertEquals($decoded, $expected);
     }
 
     public function testNoneAlgorithm()
     {
-        $msg = JWT::encode(['abc'], 'my_key', 'HS256');
+        $msg = JWT::encode(['message' => 'abc'], 'my_key', 'HS256');
         $this->setExpectedException(UnexpectedValueException::class);
         JWT::decode($msg, new Key('my_key', 'none'));
     }
 
     public function testIncorrectAlgorithm()
     {
-        $msg = JWT::encode(['abc'], 'my_key', 'HS256');
+        $msg = JWT::encode(['message' => 'abc'], 'my_key', 'HS256');
         $this->setExpectedException(UnexpectedValueException::class);
         JWT::decode($msg, new Key('my_key', 'RS256'));
     }
 
     public function testEmptyAlgorithm()
     {
-        $msg = JWT::encode(['abc'], 'my_key', 'HS256');
+        $msg = JWT::encode(['message' => 'abc'], 'my_key', 'HS256');
         $this->setExpectedException(InvalidArgumentException::class);
         JWT::decode($msg, new Key('my_key', ''));
     }
 
     public function testAdditionalHeaders()
     {
-        $msg = JWT::encode(['abc'], 'my_key', 'HS256', null, ['cty' => 'test-eit;v=1']);
-        $this->assertEquals(JWT::decode($msg, new Key('my_key', 'HS256')), ['abc']);
+        $msg = JWT::encode(['message' => 'abc'], 'my_key', 'HS256', null, ['cty' => 'test-eit;v=1']);
+        $expected = new stdClass();
+        $expected->message = 'abc';
+        $this->assertEquals(JWT::decode($msg, new Key('my_key', 'HS256')), $expected);
     }
 
     public function testInvalidSegmentCount()
@@ -268,8 +268,10 @@ class JWTTest extends TestCase
 
     public function testHSEncodeDecode()
     {
-        $msg = JWT::encode(['abc'], 'my_key', 'HS256');
-        $this->assertEquals(JWT::decode($msg, new Key('my_key', 'HS256')), ['abc']);
+        $msg = JWT::encode(['message' => 'abc'], 'my_key', 'HS256');
+        $expected = new stdClass();
+        $expected->message = 'abc';
+        $this->assertEquals(JWT::decode($msg, new Key('my_key', 'HS256')), $expected);
     }
 
     public function testRSEncodeDecode()
@@ -277,11 +279,13 @@ class JWTTest extends TestCase
         $privKey = openssl_pkey_new(['digest_alg' => 'sha256',
             'private_key_bits' => 1024,
             'private_key_type' => OPENSSL_KEYTYPE_RSA]);
-        $msg = JWT::encode(['abc'], $privKey, 'RS256');
+        $msg = JWT::encode(['message' => 'abc'], $privKey, 'RS256');
         $pubKey = openssl_pkey_get_details($privKey);
         $pubKey = $pubKey['key'];
         $decoded = JWT::decode($msg, new Key($pubKey, 'RS256'));
-        $this->assertEquals($decoded, ['abc']);
+        $expected = new stdClass();
+        $expected->message = 'abc';
+        $this->assertEquals($decoded, $expected);
     }
 
     public function testEdDsaEncodeDecode()
@@ -319,11 +323,13 @@ class JWTTest extends TestCase
             'passphrase'
         );
 
-        $jwt = JWT::encode(['abc'], $privateKey, 'RS256');
+        $jwt = JWT::encode(['message' => 'abc'], $privateKey, 'RS256');
         $keyDetails = openssl_pkey_get_details($privateKey);
         $pubKey = $keyDetails['key'];
         $decoded = JWT::decode($jwt, new Key($pubKey, 'RS256'));
-        $this->assertEquals($decoded, ['abc']);
+        $expected = new stdClass();
+        $expected->message = 'abc';
+        $this->assertEquals($decoded, $expected);
     }
 
     /**

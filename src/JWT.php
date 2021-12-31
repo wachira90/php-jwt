@@ -91,6 +91,9 @@ class JWT
         if (null === $payload = static::jsonDecode(static::urlsafeB64Decode($bodyb64))) {
             throw new UnexpectedValueException('Invalid claims encoding');
         }
+        if (!$payload instanceof stdClass) {
+            throw new UnexpectedValueException('Payload must be a JSON object');
+        }
         if (false === ($sig = static::urlsafeB64Decode($cryptob64))) {
             throw new UnexpectedValueException('Invalid signature encoding');
         }
@@ -288,11 +291,11 @@ class JWT
      *
      * @param string $input JSON string
      *
-     * @return object Object representation of JSON string
+     * @return mixed The decoded JSON string
      *
      * @throws DomainException Provided string was invalid JSON
      */
-    public static function jsonDecode(string $input): stdClass
+    public static function jsonDecode(string $input): mixed
     {
         $obj = \json_decode($input, false, 512, JSON_BIGINT_AS_STRING);
 
