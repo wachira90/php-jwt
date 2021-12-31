@@ -129,7 +129,7 @@ class JWKTest extends TestCase
 
         $result = JWT::decode($msg, self::$keys, array('RS256'));
 
-        $this->assertEquals("foo", $result->sub);
+        $this->assertEquals("foo", $result['sub']);
     }
 
     /**
@@ -143,7 +143,7 @@ class JWKTest extends TestCase
 
         $result = JWT::decode($msg, self::$keys, array('RS256'));
 
-        $this->assertEquals("bar", $result->sub);
+        $this->assertEquals("bar", $result['sub']);
     }
 
     /*

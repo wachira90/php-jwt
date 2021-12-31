@@ -60,7 +60,7 @@ class JWT
     );
 
     /**
-     * Decodes a JWT string into a PHP object.
+     * Decodes a JWT string into a PHP array.
      *
      * @param string                    $jwt            The JWT
      * @param Key|array<Key>            $keyOrKeyArray  The Key or array of Key objects.
@@ -69,7 +69,7 @@ class JWT
      *                                                  Supported algorithms are 'ES384','ES256', 'HS256', 'HS384',
      *                                                  'HS512', 'RS256', 'RS384', and 'RS512'
      *
-     * @return object The JWT's payload as a PHP object
+     * @return array The JWT's payload as a PHP array
      *
      * @throws InvalidArgumentException     Provided key/key-array was empty
      * @throws DomainException              Provided JWT is malformed
@@ -104,47 +104,47 @@ class JWT
         if (false === ($sig = static::urlsafeB64Decode($cryptob64))) {
             throw new UnexpectedValueException('Invalid signature encoding');
         }
-        if (empty($header->alg)) {
+        if (empty($header['alg'])) {
             throw new UnexpectedValueException('Empty algorithm');
-        }
-        if (empty(static::$supported_algs[$header->alg])) {
+	}
+        if (empty(static::$supported_algs[$header['alg']])) {
             throw new UnexpectedValueException('Algorithm not supported');
         }
 
-        $key = self::getKey($keyOrKeyArray, empty($header->kid) ? null : $header->kid);
+        $key = self::getKey($keyOrKeyArray, isset($header['kid']) ? $header['kid'] : null);
 
         // Check the algorithm
-        if (!self::constantTimeEquals($key->getAlgorithm(), $header->alg)) {
+        if (!self::constantTimeEquals($key->getAlgorithm(), $header['alg'])) {
             // See issue #351
             throw new UnexpectedValueException('Incorrect key for this algorithm');
         }
-        if ($header->alg === 'ES256' || $header->alg === 'ES384') {
+        if ($header['alg'] === 'ES256' || $header['alg'] === 'ES384') {
             // OpenSSL expects an ASN.1 DER sequence for ES256/ES384 signatures
             $sig = self::signatureToDER($sig);
         }
-        if (!static::verify("$headb64.$bodyb64", $sig, $key->getKeyMaterial(), $header->alg)) {
+        if (!static::verify("$headb64.$bodyb64", $sig, $key->getKeyMaterial(), $header['alg'])) {
             throw new SignatureInvalidException('Signature verification failed');
         }
 
         // Check the nbf if it is defined. This is the time that the
         // token can actually be used. If it's not yet that time, abort.
-        if (isset($payload->nbf) && $payload->nbf > ($timestamp + static::$leeway)) {
+        if (isset($payload['nbf']) && $payload['nbf'] > ($timestamp + static::$leeway)) {
             throw new BeforeValidException(
-                'Cannot handle token prior to ' . \date(DateTime::ISO8601, $payload->nbf)
+                'Cannot handle token prior to ' . \date(DateTime::ISO8601, $payload['nbf'])
             );
         }
 
         // Check that this token has been created before 'now'. This prevents
         // using tokens that have been created for later use (and haven't
         // correctly used the nbf claim).
-        if (isset($payload->iat) && $payload->iat > ($timestamp + static::$leeway)) {
+        if (isset($payload['iat']) && $payload['iat'] > ($timestamp + static::$leeway)) {
             throw new BeforeValidException(
-                'Cannot handle token prior to ' . \date(DateTime::ISO8601, $payload->iat)
+                'Cannot handle token prior to ' . \date(DateTime::ISO8601, $payload['iat'])
             );
         }
 
-        // Check if this token has expired.
-        if (isset($payload->exp) && ($timestamp - static::$leeway) >= $payload->exp) {
+	// Check if this token has expired.
+        if (isset($payload['exp']) && ($timestamp - static::$leeway) >= $payload['exp']) {
             throw new ExpiredException('Expired token');
         }
 
@@ -289,11 +289,11 @@ class JWT
     }
 
     /**
-     * Decode a JSON string into a PHP object.
+     * Decode a JSON string into a PHP array.
      *
      * @param string $input JSON string
      *
-     * @return object Object representation of JSON string
+     * @return array Decoded JSON as a PHP array.
      *
      * @throws DomainException Provided string was invalid JSON
      */
@@ -304,7 +304,7 @@ class JWT
              * to specify that large ints (like Steam Transaction IDs) should be treated as
              * strings, rather than the PHP default behaviour of converting them to floats.
              */
-            $obj = \json_decode($input, false, 512, JSON_BIGINT_AS_STRING);
+            $obj = \json_decode($input, true, 512, JSON_BIGINT_AS_STRING);
         } else {
             /** Not all servers will support that, however, so for older versions we must
              * manually detect large ints in the JSON string and quote them (thus converting
@@ -312,7 +312,7 @@ class JWT
              */
             $max_int_length = \strlen((string) PHP_INT_MAX) - 1;
             $json_without_bigints = \preg_replace('/:\s*(-?\d{'.$max_int_length.',})/', ': "$1"', $input);
-            $obj = \json_decode($json_without_bigints);
+            $obj = \json_decode($json_without_bigints, true);
         }
 
         if ($errno = \json_last_error()) {
