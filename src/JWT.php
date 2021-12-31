@@ -162,14 +162,14 @@ class JWT
         string $keyId = null,
         array $head = null
     ): string {
-        $header = array('typ' => 'JWT', 'alg' => $alg);
+        $header = ['typ' => 'JWT', 'alg' => $alg];
         if ($keyId !== null) {
             $header['kid'] = $keyId;
         }
         if (isset($head) && \is_array($head)) {
             $header = \array_merge($head, $header);
         }
-        $segments = array();
+        $segments = [];
         $segments[] = static::urlsafeB64Encode(static::jsonEncode($header));
         $segments[] = static::urlsafeB64Encode(static::jsonEncode($payload));
         $signing_input = \implode('.', $segments);
@@ -244,7 +244,7 @@ class JWT
     private static function verify(
         string $msg,
         string $signature,
-        string|OpenSSLAsymmetricKey keyMaterial,
+        string|OpenSSLAsymmetricKey $keyMaterial,
         string $alg
     ): bool {
         if (empty(static::$supported_algs[$alg])) {
@@ -432,13 +432,13 @@ class JWT
      */
     private static function handleJsonError(int $errno): void
     {
-        $messages = array(
+        $messages = [
             JSON_ERROR_DEPTH => 'Maximum stack depth exceeded',
             JSON_ERROR_STATE_MISMATCH => 'Invalid or malformed JSON',
             JSON_ERROR_CTRL_CHAR => 'Unexpected control character found',
             JSON_ERROR_SYNTAX => 'Syntax error, malformed JSON',
             JSON_ERROR_UTF8 => 'Malformed UTF-8 characters' //PHP >= 5.3.3
-        );
+        ];
         throw new DomainException(
             isset($messages[$errno])
             ? $messages[$errno]
@@ -581,6 +581,6 @@ class JWT
             $data = null;
         }
 
-        return array($pos, $data);
+        return [$pos, $data];
     }
 }
